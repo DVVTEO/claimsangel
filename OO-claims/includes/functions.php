@@ -100,22 +100,6 @@ function get_default_countries() {
     ];
 }
 
-/**
- * Sanitize the countries input.
- *
- * @param mixed $input The input from the textarea.
- * @return array Sanitized countries array.
- */
-function sanitize_countries($input) {
-    if (is_array($input)) {
-        return array_map('sanitize_text_field', $input);
-    } else {
-        $lines = explode("\n", $input);
-        $countries = array_map('trim', $lines);
-        return array_filter(array_map('sanitize_text_field', $countries));
-    }
-}
-
 /*----------------------------------------------------------------------------*\
     Add Country Field to Claims Manager and Claims Admin User Profiles
 \*----------------------------------------------------------------------------*/
@@ -126,8 +110,8 @@ function sanitize_countries($input) {
  * @param WP_User $user The current user object.
  */
 function cm_add_country_field_to_profile($user) {
-    // Retrieve the list of countries from the plugin settings.
-    $countries = get_option('cm_countries', get_default_countries());
+    // Retrieve the list of default countries.
+    $countries = get_default_countries();
     
     // Get the currently assigned country (if any) from user meta.
     $user_country = get_user_meta($user->ID, 'cm_user_country', true);
