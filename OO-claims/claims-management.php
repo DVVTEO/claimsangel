@@ -22,13 +22,13 @@ function cm_enqueue_admin_scripts() {
 
 // Load required files.
 require_once plugin_dir_path( __FILE__ ) . 'includes/functions.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-plugin.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-admin.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-settings.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-public.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-ajax.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-cm-pages.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/country-mapping.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-cm-plugin.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/admin/class-cm-admin.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/admin/class-cm-settings.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/frontend/class-cm-public.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/api/class-cm-ajax.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-cm-pages.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/data/country-mapping.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/prospecting/upload-prospects.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/prospecting/my-prospects.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/prospecting/prospect-profile-page.php';
