@@ -97,7 +97,7 @@ class ClaimsAngel {
      * Initialize plugin components
      * Creates instances of core classes for roles, post types, and meta fields
      */
-    public function init_plugin() {
+public function init_plugin() {
         // Initialize role manager
         new \ClaimsAngel\Roles\RoleManager();
         
@@ -115,6 +115,16 @@ class ClaimsAngel {
 
         // Initialize Reference page
         \ClaimsAngel\Admin\Reference::init();
+
+        // Initialize User Manager
+        \ClaimsAngel\User\Manager::init();
+        
+        // Initialize Admin BEFORE Reference
+        \ClaimsAngel\Admin\Admin::init();
+        
+        // Then initialize Reference 
+        \ClaimsAngel\Admin\Reference::init();
+    
     }
 
     /**
