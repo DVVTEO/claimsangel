@@ -137,4 +137,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
             </div>
         <?php endforeach; ?>
     </div>
+
+    <div class="ca-import-container" style="display: none;">
+        <h3>Temporary Records</h3>
+        <table class="widefat ca-import-table">
+            <thead>
+                <tr>
+                    <th>Business Name</th>
+                    <th>Web Address</th>
+                    <th>Phone Number</th>
+                    <th>LinkedIn Profile</th>
+                    <th>Country</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Temporary records will be populated via AJAX -->
+            </tbody>
+        </table>
+    </div>
 </div>

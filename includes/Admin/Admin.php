@@ -6,7 +6,7 @@ namespace ClaimsAngel\Admin;
  * Handles all admin-related functionality
  * 
  * Created: 2025-02-21
- * Last Modified: 2025-02-21 19:19:34
+ * Last Modified: 2025-02-22 12:24:27
  * Author: DVVTEO
  */
 class Admin {
@@ -36,7 +36,13 @@ class Admin {
     /**
      * Enqueue admin assets
      */
-    public static function enqueue_admin_assets() {
+    public static function enqueue_admin_assets($hook) {
+        // Only load on Claims Angel admin pages
+        if (strpos($hook, 'claims-angel') === false && 
+            strpos($hook, 'prospect-import') === false) {
+            return;
+        }
+
         wp_enqueue_style(
             'claims-angel-admin',
             CLAIMS_ANGEL_PLUGIN_URL . 'assets/css/admin.css',
@@ -51,6 +57,12 @@ class Admin {
             CLAIMS_ANGEL_VERSION,
             true
         );
+
+        // Use the WordPress global ajaxurl
+        wp_localize_script('claims-angel-admin', 'claimsAngel', [
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('claims_angel_nonce')
+        ]);
     }
 
     /**

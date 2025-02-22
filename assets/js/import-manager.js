@@ -4,7 +4,7 @@
  * Handles file uploads and AJAX interactions for prospect importing
  * 
  * Created: 2025-02-21
- * Last Modified: 2025-02-22 12:04:11
+ * Last Modified: 2025-02-22 12:12:55
  * Author: DVVTEO
  */
 
@@ -15,6 +15,7 @@
     $(document).ready(function() {
         const $importForm = $('#importForm');
         const $importResults = $('#import-results');
+        const $tempRecords = $('.ca-import-container');
 
         // Handle form submission
         $importForm.on('submit', function(e) {
@@ -37,7 +38,6 @@
                 success: function(response) {
                     if (response.success) {
                         displayResults(response.data);
-                        // After successful upload, show temporary records
                         displayTempRecords();
                     } else {
                         alert(response.data.message || 'Upload failed. Please try again.');
@@ -71,7 +71,7 @@
                     if (response.success) {
                         // Update the table to show approved status
                         updateCountryTable(countryCode, response.data);
-                        // After approval, refresh temporary records
+                        // Refresh temporary records after approval
                         displayTempRecords();
                     } else {
                         alert(response.data.message || 'Approval failed. Please try again.');
@@ -119,7 +119,7 @@
         }
 
         /**
-         * Display temporary records for review
+         * Display temporary records in table
          */
         function displayTempRecords() {
             $.ajax({
@@ -130,12 +130,10 @@
                     security: prospectImport.nonce
                 },
                 success: function(response) {
-                    if (response.success) {
-                        // Get the table body
+                    if (response.success && response.data) {
                         const $tbody = $('.ca-import-table tbody');
                         $tbody.empty();
 
-                        // Add each record to the table
                         response.data.forEach(function(record) {
                             const row = `
                                 <tr>
@@ -151,8 +149,8 @@
                             $tbody.append(row);
                         });
 
-                        // Show the temp records section if we have data
-                        $('.ca-import-container').toggle(response.data.length > 0);
+                        // Show the container if we have data
+                        $tempRecords.toggle(response.data.length > 0);
                     }
                 },
                 error: function() {
@@ -184,8 +182,8 @@
                 'valid': 'Valid',
                 'duplicate': 'Duplicate Found',
                 'approved': 'Approved',
-                'error': 'Error',
-                'pending': 'Pending'
+                'pending': 'Pending',
+                'error': 'Error'
             };
             return labels[status] || status;
         }
@@ -216,7 +214,7 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // Initial load of temporary records
+        // Load temporary records on page load
         displayTempRecords();
     });
 })(jQuery);
