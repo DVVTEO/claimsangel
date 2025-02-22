@@ -27,6 +27,9 @@ class MetaFieldManager {
      * Defines the structure and properties of all custom meta fields
      */
     public function register_meta_fields() {
+        // Unregister date_created first
+        unregister_meta_key('post', 'date_created', 'business');
+        
         // Business Meta Fields - Basic Information
         $this->register_business_basic_fields();
         // Business Meta Fields - Complex Data Structures
@@ -47,7 +50,6 @@ class MetaFieldManager {
             'linkedin_profile' => 'string',
             'phone_number' => 'string',
             'country' => 'string',
-            'date_created' => 'string',
             'prospect_prospector' => 'integer',
             'prospect_closer' => 'integer',
             'general_notes' => 'string'
@@ -60,6 +62,15 @@ class MetaFieldManager {
                 'show_in_rest' => true,
             ]);
         }
+
+        // Register date_created separately with timestamp configuration
+        register_post_meta('business', 'date_created', [
+            'type' => 'integer',
+            'description' => 'Date when the business was created, stored as Unix timestamp',
+            'single' => true,
+            'show_in_rest' => true,
+            'sanitize_callback' => 'absint',
+        ]);
     }
 
     /**
@@ -113,9 +124,8 @@ class MetaFieldManager {
                     'items' => [
                         'type' => 'object',
                         'properties' => [
-                            'datetime' => ['type' => 'string'],
-                            'caller' => ['type' => 'string'],
-                            'contact' => ['type' => 'string'],
+                            'timestamp' => ['type' => 'integer'],
+                            'user_id' => ['type' => 'integer'],
                             'notes' => ['type' => 'string'],
                             'outcome' => ['type' => 'string'],
                         ],

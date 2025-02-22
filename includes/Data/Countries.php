@@ -184,6 +184,15 @@ class Countries {
             return $country['enabled'];
         });
     }
+    
+    
+        /**
+     * Get all countries including their enabled status
+     * @return array Array of country data
+     */
+    public function get_all_countries() {
+        return $this->countries;
+    }
 
     /**
      * Get country data by ISO code

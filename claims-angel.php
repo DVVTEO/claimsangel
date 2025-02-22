@@ -6,7 +6,7 @@
  * Author: DVVTEO
  * Author URI: https://claimsangel.com
  * Created: 2025-02-21
- * Last Modified: 2025-02-21 19:22:15
+ * Last Modified: 2025-02-21 23:00:07
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: claims-angel
@@ -97,7 +97,7 @@ class ClaimsAngel {
      * Initialize plugin components
      * Creates instances of core classes for roles, post types, and meta fields
      */
-public function init_plugin() {
+    public function init_plugin() {
         // Initialize role manager
         new \ClaimsAngel\Roles\RoleManager();
         
@@ -124,7 +124,19 @@ public function init_plugin() {
         
         // Then initialize Reference 
         \ClaimsAngel\Admin\Reference::init();
-    
+
+        // Initialize User Manager
+        \ClaimsAngel\User\Manager::init();
+
+        // Initialize Business Admin
+        new \ClaimsAngel\Admin\BusinessAdmin();
+
+        // Initialize Import System Components in admin
+        if (is_admin()) {
+            \ClaimsAngel\Data\WebAddress::get_instance();
+            \ClaimsAngel\Admin\ImportManager::get_instance();
+            \ClaimsAngel\Admin\ProspectImportProcessor::get_instance();
+        }
     }
 
     /**
@@ -140,6 +152,11 @@ public function init_plugin() {
         $post_type_manager = new \ClaimsAngel\PostTypes\PostTypeManager();
         $post_type_manager->register_post_types();
 
+        // Initialize import system tables
+        if (class_exists('\ClaimsAngel\Admin\ProspectImportProcessor')) {
+            \ClaimsAngel\Admin\ProspectImportProcessor::get_instance()->create_temp_table();
+        }
+
         // Flush rewrite rules
         flush_rewrite_rules();
     }
@@ -149,6 +166,10 @@ public function init_plugin() {
      * Cleans up rewrite rules
      */
     public static function deactivate() {
+        // Clean up import system tables
+        global $wpdb;
+        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}temp_prospects");
+
         // Flush rewrite rules
         flush_rewrite_rules();
     }
