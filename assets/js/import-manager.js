@@ -4,7 +4,7 @@
  * Handles file uploads and AJAX interactions for prospect importing
  * 
  * Created: 2025-02-21
- * Last Modified: 2025-02-21 22:42:57
+ * Last Modified: 2025-02-22 12:04:11
  * Author: DVVTEO
  */
 
@@ -37,6 +37,8 @@
                 success: function(response) {
                     if (response.success) {
                         displayResults(response.data);
+                        // After successful upload, show temporary records
+                        displayTempRecords();
                     } else {
                         alert(response.data.message || 'Upload failed. Please try again.');
                     }
@@ -69,6 +71,8 @@
                     if (response.success) {
                         // Update the table to show approved status
                         updateCountryTable(countryCode, response.data);
+                        // After approval, refresh temporary records
+                        displayTempRecords();
                     } else {
                         alert(response.data.message || 'Approval failed. Please try again.');
                         $button.prop('disabled', false);
@@ -115,6 +119,49 @@
         }
 
         /**
+         * Display temporary records for review
+         */
+        function displayTempRecords() {
+            $.ajax({
+                url: prospectImport.ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'get_temp_prospects',
+                    security: prospectImport.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Get the table body
+                        const $tbody = $('.ca-import-table tbody');
+                        $tbody.empty();
+
+                        // Add each record to the table
+                        response.data.forEach(function(record) {
+                            const row = `
+                                <tr>
+                                    <td>${escapeHtml(record.business_name)}</td>
+                                    <td>${escapeHtml(record.web_address)}</td>
+                                    <td>${escapeHtml(record.phone_number)}</td>
+                                    <td>${escapeHtml(record.linkedin_profile)}</td>
+                                    <td>${escapeHtml(record.country)}</td>
+                                    <td>${getStatusLabel(record.status)}</td>
+                                    <td>${formatDate(record.created_at)}</td>
+                                </tr>
+                            `;
+                            $tbody.append(row);
+                        });
+
+                        // Show the temp records section if we have data
+                        $('.ca-import-container').toggle(response.data.length > 0);
+                    }
+                },
+                error: function() {
+                    alert('Failed to load temporary records.');
+                }
+            });
+        }
+
+        /**
          * Update country table after approval
          * @param {string} countryCode The country code
          * @param {Object} data The response data
@@ -137,9 +184,21 @@
                 'valid': 'Valid',
                 'duplicate': 'Duplicate Found',
                 'approved': 'Approved',
-                'error': 'Error'
+                'error': 'Error',
+                'pending': 'Pending'
             };
             return labels[status] || status;
+        }
+
+        /**
+         * Format date for display
+         * @param {string} dateString The date string to format
+         * @returns {string} Formatted date string
+         */
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
         }
 
         /**
@@ -156,5 +215,8 @@
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
         }
+
+        // Initial load of temporary records
+        displayTempRecords();
     });
 })(jQuery);
