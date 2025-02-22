@@ -194,16 +194,12 @@ class ProspectImportProcessor {
             return 'Country is required';
         }
 
-        // Try to get country code, first assuming it's a name
+        // Try to get country code
         $country_input = trim($data['country']);
         $country_code = $this->countries->find_country_code($country_input);
         
-        // If not found by name, check if it's already a valid code
         if (!$country_code) {
-            $country_code = strtoupper($country_input);
-            if (!isset($this->countries->get_all()[$country_code])) {
-                return sprintf('Invalid country: %s', $country_input);
-            }
+            return sprintf('Invalid country: %s', $country_input);
         }
 
         // Update the data with normalized country code
