@@ -93,10 +93,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
                 <input type="file" 
                        name="prospect_file" 
                        id="prospect_file" 
-                       accept=".csv,.xlsx,.xls" 
+                       accept=".csv" 
                        required />
                 <p class="description">
-                    Accepted file types: CSV, Excel (.xlsx, .xls)<br>
+                    Accepted file types: CSV<br>
                     Required columns: Business Name, Country
                 </p>
             </div>
