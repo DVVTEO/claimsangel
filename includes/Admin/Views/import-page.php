@@ -7,6 +7,7 @@ if (!defined('ABSPATH')) {
 $upload_error = '';
 $upload_success = '';
 $import_stats = [];
+$session_id = '';
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce'])) {
@@ -27,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
                     current_time('mysql')
                 ));
             } else {
+                $session_id = $result['session_id'];
                 $import_stats = $result['stats'];
                 $upload_success = sprintf(
                     'File processed successfully. Valid: %d, Invalid: %d, Duplicate: %d',
@@ -73,20 +75,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
         <div class="notice notice-success is-dismissible">
             <p><?php echo esc_html($upload_success); ?></p>
         </div>
-        <?php if (!empty($import_stats)): ?>
-            <div class="import-statistics">
-                <h3>Import Statistics</h3>
-                <ul>
-                    <li>Valid Records: <strong><?php echo intval($import_stats['valid']); ?></strong></li>
-                    <li>Invalid Records: <strong><?php echo intval($import_stats['invalid']); ?></strong></li>
-                    <li>Duplicate Records: <strong><?php echo intval($import_stats['duplicate']); ?></strong></li>
-                </ul>
-            </div>
-        <?php endif; ?>
+
     <?php endif; ?>
 
     <div class="upload-section">
-        <form method="post" enctype="multipart/form-data" id="importForm">
+        <form method="post" enctype="multipart/form-data">
             <?php wp_nonce_field('prospect_import_action', 'prospect_import_nonce'); ?>
             <div class="form-field">
                 <label for="prospect_file">Select File to Import</label>
@@ -106,55 +99,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
         </form>
     </div>
 
-    <div id="import-results" style="display: <?php echo !empty($import_stats) ? 'block' : 'none'; ?>">
+    <div class="results-section">
         <?php
-        $countries = \ClaimsAngel\Data\Countries::get_instance()->get_all();
-        foreach ($countries as $country_code => $country_data):
-            if (!$country_data['enabled']) continue;
-        ?>
-            <div class="country-section" id="country-<?php echo esc_attr($country_code); ?>">
-                <h2><?php echo esc_html($country_data['name']); ?></h2>
-                <table class="widefat prospects-table">
-                    <thead>
-                        <tr>
-                            <th>Business Name</th>
-                            <th>Web Address</th>
-                            <th>Phone Number</th>
-                            <th>LinkedIn Profile</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Data will be populated via AJAX -->
-                    </tbody>
-                </table>
-                <div class="table-actions">
-                    <button class="button button-primary approve-country" 
-                            data-country="<?php echo esc_attr($country_code); ?>">
-                        Approve All <?php echo esc_html($country_data['name']); ?> Records
-                    </button>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    </div>
+        global $wpdb;
+        $temp_table = $wpdb->prefix . 'temp_prospects';
+        
+        // Get all countries that have records in the temp table
+        $countries_with_records = $wpdb->get_col(
+            "SELECT DISTINCT country FROM {$temp_table}"
+        );
 
-    <div class="ca-import-container" style="display: none;">
-        <h3>Temporary Records</h3>
-        <table class="widefat ca-import-table">
-            <thead>
-                <tr>
-                    <th>Business Name</th>
-                    <th>Web Address</th>
-                    <th>Phone Number</th>
-                    <th>LinkedIn Profile</th>
-                    <th>Country</th>
-                    <th>Status</th>
-                    <th>Created At</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Temporary records will be populated via AJAX -->
-            </tbody>
-        </table>
+        if (!empty($countries_with_records)) {
+            $countries = \ClaimsAngel\Data\Countries::get_instance()->get_all();
+            foreach ($countries_with_records as $country_code):
+                if (!isset($countries[$country_code]) || !$countries[$country_code]['enabled']) continue;
+                
+                // Get records for this country
+                $records = $wpdb->get_results($wpdb->prepare(
+                    "SELECT * FROM {$temp_table} WHERE country = %s" . 
+                    (!empty($session_id) ? " AND session_id = %s" : ""),
+                    array_merge([$country_code], !empty($session_id) ? [$session_id] : [])
+                ));
+                
+                if (empty($records)) continue;
+            ?>
+                <div class="country-section" id="country-<?php echo esc_attr($country_code); ?>">
+                    <h2><?php echo esc_html($countries[$country_code]['name']); ?></h2>
+                    <table class="widefat">
+                        <thead>
+                            <tr>
+                                <th>Business Name</th>
+                                <th>Web Address</th>
+                                <th>Phone Number</th>
+                                <th>LinkedIn Profile</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($records as $record): ?>
+                                <tr>
+                                    <td><?php echo esc_html($record->business_name); ?></td>
+                                    <td><?php echo esc_html($record->web_address); ?></td>
+                                    <td><?php echo esc_html($record->phone_number); ?></td>
+                                    <td><?php echo esc_html($record->linkedin_profile); ?></td>
+                                    <td><?php echo esc_html($record->status); ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endforeach;
+        } ?>
     </div>
 </div>

@@ -124,10 +124,8 @@ class ProspectImportProcessor {
 
             // Check for duplicates
             if ($this->is_duplicate($clean_data)) {
-                $clean_data['status'] = 'duplicate';
                 $results['duplicate']++;
-            } else {
-                $results['valid']++;
+                continue; // Skip insertion for duplicates
             }
 
             // Insert into temporary table
@@ -136,6 +134,7 @@ class ProspectImportProcessor {
                 $clean_data,
                 ['%s', '%s', '%s', '%s', '%s', '%s', '%s']
             );
+            $results['valid']++;
         }
 
         return $results;
