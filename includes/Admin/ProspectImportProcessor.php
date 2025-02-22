@@ -9,6 +9,7 @@ class ProspectImportProcessor {
     private $required_columns = ['business_name', 'country'];
     private $allowed_columns = ['business_name', 'web_address', 'phone_number', 'linkedin_profile', 'country'];
     private $temp_table_name;
+    private $rejected_table_name;
     private $wpdb;
     private $countries;
 
@@ -23,10 +24,52 @@ class ProspectImportProcessor {
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->temp_table_name = $wpdb->prefix . 'temp_prospects';
+        $this->rejected_table_name = $wpdb->prefix . 'rejected_prospects';
         $this->countries = Countries::get_instance();
         
-        // Change to admin_init hook
-        add_action('admin_init', array($this, 'create_temp_table'));
+        add_action('admin_init', array($this, 'create_tables'));
+    }
+
+    /**
+     * Create necessary database tables
+     */
+    public function create_tables() {
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        // Create temporary prospects table
+        $sql = "CREATE TABLE IF NOT EXISTS {$this->temp_table_name} (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            session_id varchar(32) NOT NULL,
+            business_name varchar(255) NOT NULL,
+            web_address varchar(255),
+            phone_number varchar(32),
+            linkedin_profile varchar(255),
+            country varchar(2) NOT NULL,
+            status varchar(20) NOT NULL DEFAULT 'pending',
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY session_id (session_id),
+            KEY status (status)
+        ) $charset_collate;";
+
+        // Create rejected prospects table
+        $sql .= "CREATE TABLE IF NOT EXISTS {$this->rejected_table_name} (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            session_id varchar(32) NOT NULL,
+            business_name varchar(255) NOT NULL,
+            web_address varchar(255),
+            phone_number varchar(32),
+            linkedin_profile varchar(255),
+            country varchar(255) NOT NULL,
+            rejection_reason varchar(255) NOT NULL,
+            original_data text NOT NULL,
+            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY session_id (session_id)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
     }
 
     /**
@@ -107,6 +150,7 @@ class ProspectImportProcessor {
             // First, validate and standardize the country
             $country_code = $this->validate_country($row['country']);
             if (!$country_code) {
+                $this->add_rejected_record($row, $session_id, 'Invalid or disabled country code');
                 $results['invalid']++;
                 continue;
             }
@@ -124,8 +168,9 @@ class ProspectImportProcessor {
 
             // Check for duplicates
             if ($this->is_duplicate($clean_data)) {
+                $this->add_rejected_record($row, $session_id, 'Duplicate record');
                 $results['duplicate']++;
-                continue; // Skip insertion for duplicates
+                continue;
             }
 
             // Insert into temporary table
@@ -141,28 +186,72 @@ class ProspectImportProcessor {
     }
 
     /**
-     * Create temporary table for import data
+     * Add a record to the rejected records table
+     * @param array $data Original record data
+     * @param string $session_id Session identifier
+     * @param string $reason Reason for rejection
      */
-    public function create_temp_table() {
-        $charset_collate = $this->wpdb->get_charset_collate();
+    private function add_rejected_record($data, $session_id, $reason) {
+        $this->wpdb->insert(
+            $this->rejected_table_name,
+            [
+                'session_id' => $session_id,
+                'business_name' => isset($data['business_name']) ? sanitize_text_field($data['business_name']) : '',
+                'web_address' => isset($data['web_address']) ? esc_url_raw($data['web_address']) : '',
+                'phone_number' => isset($data['phone_number']) ? sanitize_text_field($data['phone_number']) : '',
+                'linkedin_profile' => isset($data['linkedin_profile']) ? esc_url_raw($data['linkedin_profile']) : '',
+                'country' => isset($data['country']) ? sanitize_text_field($data['country']) : '',
+                'rejection_reason' => sanitize_text_field($reason),
+                'original_data' => json_encode($data)
+            ],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s']
+        );
+    }
 
-        $sql = "CREATE TABLE IF NOT EXISTS {$this->temp_table_name} (
-            id bigint(20) NOT NULL AUTO_INCREMENT,
-            session_id varchar(32) NOT NULL,
-            business_name varchar(255) NOT NULL,
-            web_address varchar(255),
-            phone_number varchar(32),
-            linkedin_profile varchar(255),
-            country varchar(2) NOT NULL,
-            status varchar(20) NOT NULL DEFAULT 'pending',
-            created_at timestamp DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY  (id),
-            KEY session_id (session_id),
-            KEY status (status)
-        ) $charset_collate;";
+    /**
+     * Get rejected records for a session
+     * @param string $session_id Session identifier
+     * @return array Rejected records
+     */
+    public function get_rejected_records($session_id) {
+        return $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM {$this->rejected_table_name} WHERE session_id = %s",
+            $session_id
+        ));
+    }
 
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+/**
+     * Export rejected records as CSV
+     * @param string $session_id Session identifier
+     */
+    public function export_rejected_records_csv($session_id) {
+        $records = $this->get_rejected_records($session_id);
+        if (empty($records)) {
+            return false;
+        }
+        
+        $output = fopen('php://output', 'w');
+        
+        // Add UTF-8 BOM for Excel compatibility
+        fputs($output, "\xEF\xBB\xBF");
+        
+        // Add headers
+        fputcsv($output, ['Business Name', 'Web Address', 'Phone Number', 'LinkedIn Profile', 'Country', 'Rejection Reason']);
+        
+        // Add data
+        foreach ($records as $record) {
+            fputcsv($output, [
+                $record->business_name,
+                $record->web_address,
+                $record->phone_number,
+                $record->linkedin_profile,
+                $record->country,
+                $record->rejection_reason
+            ]);
+        }
+        
+        fclose($output);
+        return true;
     }
 
     /**
