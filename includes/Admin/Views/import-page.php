@@ -7,7 +7,30 @@ if (!defined('ABSPATH')) {
 $upload_error = '';
 $upload_success = '';
 $import_stats = [];
-$session_id = '';
+
+// Handle CSV export
+if (isset($_POST['export_rejected']) && isset($_POST['session_id']) && isset($_POST['export_nonce'])) {
+    if (wp_verify_nonce($_POST['export_nonce'], 'export_rejected_action')) {
+        $processor = \ClaimsAngel\Admin\ProspectImportProcessor::get_instance();
+        
+        // Clear any output buffers
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        
+        // Generate filename with timestamp
+        $filename = 'rejected-records-' . sanitize_file_name($_POST['session_id']) . '-' . date('Y-m-d-H-i-s') . '.csv';
+        
+        // Set headers for file download
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        $processor->export_rejected_records_csv($_POST['session_id']);
+        exit;
+    }
+}
 
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce'])) {
@@ -28,7 +51,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
                     current_time('mysql')
                 ));
             } else {
-                $session_id = $result['session_id'];
                 $import_stats = $result['stats'];
                 $upload_success = sprintf(
                     'File processed successfully. Valid: %d, Invalid: %d, Duplicate: %d',
@@ -43,6 +65,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
                     wp_get_current_user()->user_login,
                     current_time('mysql')
                 ));
+
+                // Get rejected records if any exist
+                if ($result['stats']['invalid'] > 0 || $result['stats']['duplicate'] > 0) {
+                    $rejected_records = $processor->get_rejected_records($result['session_id']);
+                }
             }
         } else {
             $upload_error = 'No file was uploaded.';
@@ -75,7 +102,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
         <div class="notice notice-success is-dismissible">
             <p><?php echo esc_html($upload_success); ?></p>
         </div>
-
     <?php endif; ?>
 
     <div class="upload-section">
@@ -98,6 +124,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['prospect_import_nonce
                    value="Upload File" />
         </form>
     </div>
+
+    <?php if (!empty($rejected_records)): ?>
+        <div class="rejected-records-section">
+            <h2>Rejected Records</h2>
+            <form method="post">
+                <?php wp_nonce_field('export_rejected_action', 'export_nonce'); ?>
+                <input type="hidden" name="session_id" value="<?php echo esc_attr($result['session_id']); ?>" />
+                <input type="submit" 
+                       name="export_rejected" 
+                       class="button" 
+                       value="Download Rejected Records (CSV)" />
+            </form>
+            <table class="widefat">
+                <thead>
+                    <tr>
+                        <th>Business Name</th>
+                        <th>Web Address</th>
+                        <th>Phone Number</th>
+                        <th>LinkedIn Profile</th>
+                        <th>Country</th>
+                        <th>Reason</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($rejected_records as $record): ?>
+                        <tr>
+                            <td><?php echo esc_html($record->business_name); ?></td>
+                            <td><?php echo esc_html($record->web_address); ?></td>
+                            <td><?php echo esc_html($record->phone_number); ?></td>
+                            <td><?php echo esc_html($record->linkedin_profile); ?></td>
+                            <td><?php echo esc_html($record->country); ?></td>
+                            <td><?php echo esc_html($record->rejection_reason); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
 
     <div class="results-section">
         <?php
