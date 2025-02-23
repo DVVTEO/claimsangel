@@ -136,7 +136,8 @@ class ClaimsAngel {
             \ClaimsAngel\Data\WebAddress::get_instance();
             \ClaimsAngel\Admin\ImportManager::get_instance();
             \ClaimsAngel\Admin\ProspectImportProcessor::get_instance();
-            \ClaimsAngel\Admin\ProspectListPage::get_instance();
+            \ClaimsAngel\Admin\Prospecting\ProspectListPage::get_instance();
+            \ClaimsAngel\Admin\Prospecting\NewProspectProfile::get_instance();
         }
     }
 
