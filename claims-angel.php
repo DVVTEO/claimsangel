@@ -130,6 +130,9 @@ class ClaimsAngel {
 
         // Initialize Business Admin
         new \ClaimsAngel\Admin\BusinessAdmin();
+        
+        // Initialize Vehicle Management Page
+        \ClaimsAngel\Admin\VehicleManagement\VehicleManagementPage::init();
 
         // Initialize Import System Components in admin
         if (is_admin()) {
@@ -147,8 +150,9 @@ class ClaimsAngel {
      */
     public static function activate() {
         // Initialize role manager for activation
-        $role_manager = new \ClaimsAngel\Roles\RoleManager();
-        $role_manager->setup_roles();
+    $role_manager = new \ClaimsAngel\Roles\RoleManager();
+    $role_manager->remove_roles(); // Ensure previous roles are removed
+    $role_manager->setup_roles();  // Now set up fresh roles
 
         // Initialize post types for activation
         $post_type_manager = new \ClaimsAngel\PostTypes\PostTypeManager();
@@ -156,7 +160,7 @@ class ClaimsAngel {
 
         // Initialize import system tables
         if (class_exists('\ClaimsAngel\Admin\ProspectImportProcessor')) {
-            \ClaimsAngel\Admin\ProspectImportProcessor::get_instance()->create_temp_table();
+            \ClaimsAngel\Admin\ProspectImportProcessor::get_instance()->create_tables();
         }
 
         // Flush rewrite rules
@@ -167,19 +171,33 @@ class ClaimsAngel {
      * Plugin deactivation hook callback
      * Cleans up rewrite rules
      */
-    public static function deactivate() {
-        // Clean up import system tables
-        global $wpdb;
-        $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}temp_prospects");
-
-        // Flush rewrite rules
-        flush_rewrite_rules();
-    }
+public static function deactivate() {
+    // Remove custom roles
+    $role_manager = new \ClaimsAngel\Roles\RoleManager();
+    $role_manager->remove_roles(); // This method should handle removing roles and clearing the cache
+    
+    // Clean up import system tables
+    global $wpdb;
+    $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}temp_prospects");
+    
+    // Flush rewrite rules
+    flush_rewrite_rules();
+}
 }
 
 // Register activation and deactivation hooks
 register_activation_hook(__FILE__, ['ClaimsAngel', 'activate']);
 register_deactivation_hook(__FILE__, ['ClaimsAngel', 'deactivate']);
+
+add_filter( 'rest_prepare_business', function( $response, $post, $request ) {
+    // Retrieve all meta for this post.
+    $meta = get_post_meta( $post->ID );
+    // Add the meta data to the response.
+    $data = $response->get_data();
+    $data['meta'] = $meta;
+    $response->set_data( $data );
+    return $response;
+}, 10, 3 );
 
 // Initialize the plugin
 ClaimsAngel::get_instance();
