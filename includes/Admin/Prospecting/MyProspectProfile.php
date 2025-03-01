@@ -41,7 +41,7 @@ class MyProspectProfile
     private function __construct()
     {
         // Core WordPress hooks
-        add_action('add_myprospect_menu', [$this, 'add_myprospect_menu']);
+        add_action("admin_menu", [$this, "add_myprospect_menu"]);
         add_action("admin_enqueue_scripts", [$this, "enqueue_admin_assets"]);
 
         // Register AJAX handlers - Call Logs
